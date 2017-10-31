@@ -25,7 +25,7 @@ ctx.request = None
 class Firefly(object):
     def __init__(self, auth_token=None):
         self.mapping = {}
-        self.add_route('/', self.generate_index,internal=True)
+        self.add_route('/', self.generate_index, method="GET", internal=True)
         self.auth_token = auth_token
 
     def set_auth_token(self, token):
@@ -134,12 +134,15 @@ class FireflyFunction(object):
 
     def get_inputs(self, request):
         if request.method == 'GET':
-            return json.loads(request.GET)
+            return json.loads(json.dumps(self.process_multidict(request.GET)))
         content_type = self.get_content_type(request)
         if content_type == 'multipart/form-data':
             return self.get_multipart_formdata_inputs(request)
         else:
             return json.loads(request.body.decode('utf-8'))
+
+    def process_multidict(self, mdict):
+        return {k: mdict.get(k) for k in mdict.keys()}
 
     def get_content_type(self, request):
         content_type = request.headers.get('Content-Type', 'application/octet-stream')
