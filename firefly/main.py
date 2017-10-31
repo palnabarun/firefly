@@ -41,7 +41,7 @@ def parse_args():
     p.add_argument("functions", nargs='*', help="functions to serve")
     return p.parse_args()
 
-def load_function(function_spec, path=None, name=None):
+def load_function(function_spec, path=None, name=None, method=None):
     if "." not in function_spec:
         raise Exception("Invalid function: {}, please specify it as module.function".format(function_spec))
 
@@ -54,7 +54,8 @@ def load_function(function_spec, path=None, name=None):
         raise
     path = path or "/"+func_name
     name = name or func_name
-    return (path, name, func)
+    method = method or "POST"
+    return (path, name, func, method)
 
 def load_functions(function_specs):
     return [load_function(function_spec) for function_spec in function_specs]
@@ -67,14 +68,14 @@ def parse_config_file(config_file):
     return config_dict
 
 def parse_config_data(config_dict):
-    functions = [(load_function(f["function"], path=f.get("path"), name=name, ))
+    functions = [(load_function(f["function"], path=f.get("path"), name=name, method=f.get("method"), ))
             for name, f in config_dict["functions"].items()]
     token = config_dict.get("token", None)
     return functions, token
 
 def add_routes(app, functions):
     for path, name, function in functions:
-        app.add_route(path, function, name)
+        app.add_route(path, function, name, method)
 
 def setup_logger():
     level = logging.INFO
