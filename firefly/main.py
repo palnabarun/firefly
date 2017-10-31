@@ -74,7 +74,7 @@ def parse_config_data(config_dict):
     return functions, token
 
 def add_routes(app, functions):
-    for path, name, function in functions:
+    for path, name, function, method in functions:
         app.add_route(path, function, name, method)
 
 def setup_logger():
