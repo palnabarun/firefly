@@ -31,13 +31,20 @@ class Firefly(object):
     def set_auth_token(self, token):
         self.auth_token = token
 
-    def add_route(self, path, function, function_name=None, **kwargs):
-        self.mapping[path] = FireflyFunction(function, function_name, **kwargs)
+    def add_route(self, path, function, function_name=None, method=None, **kwargs):
+        self.mapping[path] = {
+            'function': FireflyFunction(function, function_name, **kwargs),
+            'method': method
+            }
 
     def generate_function_list(self):
-        return {f.name: {"path": path, "doc": f.doc, "parameters": f.sig}
-                for path, f in self.mapping.items()
-                if f.options.get("internal") != True}
+        return {
+            f['function'].name: {
+                "path": path,
+                "doc": f['function'].doc,
+                "parameters": f['function'].sig,
+                "method": f['method']
+            } for path, f in self.mapping.items() if f['function'].options.get("internal") != True}
 
     def generate_index(self):
         help_dict = {
@@ -73,9 +80,13 @@ class Firefly(object):
         ctx.request = request
 
         path = request.path_info
+        method = request.method
         if path in self.mapping:
-            func = self.mapping[path]
-            response = func(request)
+            if method == self.mapping[path]['method']:
+                func = self.mapping[path]['function']
+                response = func(request)
+            else:
+                response = self.http_error('405 Method Not Allowed', error='Method {} not allowed on path: {}'.format(method, path))
         else:
             response = self.http_error('404 Not Found', error="Not found: " + path)
 
@@ -122,6 +133,8 @@ class FireflyFunction(object):
         return self.make_response(result)
 
     def get_inputs(self, request):
+        if request.method == 'GET':
+            return json.loads(request.GET)
         content_type = self.get_content_type(request)
         if content_type == 'multipart/form-data':
             return self.get_multipart_formdata_inputs(request)
