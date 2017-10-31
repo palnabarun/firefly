@@ -19,10 +19,11 @@ class TestFirefly:
         firefly = Firefly()
         assert firefly.generate_function_list() == {}
 
-        firefly.add_route("/square", square, "square")
+        firefly.add_route("/square", square, "square", "POST")
         returned_dict = {
                 "square": {
                     "path": "/square",
+                    "method": "POST",
                     "doc": "Computes square",
                     "parameters": [
                         {
@@ -36,10 +37,11 @@ class TestFirefly:
 
     def test_generate_function_list_for_func_name(self):
         firefly = Firefly()
-        firefly.add_route("/sq2", square, "sq")
+        firefly.add_route("/sq2", square, "sq", "POST")
         returned_dict = {
                 "sq": {
                     "path": "/sq2",
+                    "method": "POST",
                     "doc": "Computes square",
                     "parameters": [
                         {
@@ -53,7 +55,7 @@ class TestFirefly:
 
     def test_function_call(self):
         app = Firefly()
-        app.add_route("/", square)
+        app.add_route("/", square, method="POST")
 
         request = Request.blank("/", POST='{"a": 3}')
         response = app.process_request(request)
