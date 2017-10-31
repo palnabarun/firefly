@@ -14,19 +14,29 @@ class Client:
 
     def call_func(self, func_name, **kwargs):
         path = self._get_path(func_name)
-        return self.request(path, **kwargs)
+        method = self._get_method(func_name)
+        return self.request(path, method, **kwargs)
 
-    def request(self, _path, **kwargs):
+    def request(self, _path, _method, **kwargs):
         url = self.server_url + _path
+        headers = self.prepare_headers()
+        
         try:
-            headers = self.prepare_headers()
             data, files = self.decouple_files(kwargs)
-            if files:
-                response = requests.post(url, data=data, files=files, headers=headers, stream=True)
+
+            if _method == "GET":
+                if files:
+                    raise FireflyError('Files not allowed in GET')
+                response = requests.get(url, params=data, headers=headers)
             else:
-                response = requests.post(url, json=data, headers=headers, stream=True)
+                if files:
+                    response = requests.post(url, data=data, files=files, headers=headers, stream=True)
+                else:
+                    response = requests.post(url, json=data, headers=headers, stream=True)
         except ConnectionError:
             raise FireflyError('Unable to connect to the server, please try again later.')
+        except FireflyError as e:
+            raise FireflyError(str(e))
         return self.handle_response(response)
 
     def prepare_headers(self):
@@ -37,6 +47,10 @@ class Client:
             headers['Authorization'] = 'Token {}'.format(self.auth_token)
         return headers
 
+    def _get_method(self, func_name):
+        functions = self._metadata.get('functions', {})
+        func_info = functions.get(func_name) or {"method": "POST"}
+        return func_info["method"]
 
     def _get_path(self, func_name):
         functions = self._metadata.get('functions', {})
@@ -78,6 +92,8 @@ class Client:
             raise FireflyError("Authorization token mismatch.")
         elif response.status_code == 404:
             raise FireflyError("Requested function not found")
+        elif response.status_code == 405:
+            raise FireflyError("Method not allowed for specified function")
         elif response.status_code == 422:
             raise ValidationError(response.json()["error"])
         elif response.status_code == 500:
